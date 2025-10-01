@@ -1,15 +1,29 @@
 {
-  "name": "My PWA",
-  "short_name": "PWA",
-  "start_url": "/",
+  "name": "Arturo Progressive Web App",
+  "short_name": "MyPWASM",
+  "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#317EFB",
+  "description": "Una PWA de Arturo con App Shell y Service Worker.",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
