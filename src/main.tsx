@@ -8,7 +8,7 @@ import './index.css';
 // ---------------------
 import { registerSW } from 'virtual:pwa-register';
 
-const updateSW = registerSW({
+registerSW({
   onOfflineReady() {
     console.log('✅ Tu app ya está lista para usar offline');
   },
