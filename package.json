@@ -12,6 +12,7 @@
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
+    "idb": "^8.0.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
@@ -33,6 +34,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.1",
     "vite": "^7.1.2",
+    "vite-plugin-pwa": "^1.0.3",
     "workbox-cli": "^7.3.0"
   }
 }

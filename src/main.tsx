@@ -1,20 +1,41 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
 
+// ---------------------
+// Registro del Service Worker con Vite PWA
+// ---------------------
+import { registerSW } from 'virtual:pwa-register';
+
+const updateSW = registerSW({
+  onOfflineReady() {
+    console.log('✅ Tu app ya está lista para usar offline');
+  },
+  onNeedRefresh() {
+    console.log('⚡ Nueva versión disponible. Actualiza la app');
+  },
+});
+
+navigator.serviceWorker?.addEventListener('message', (ev) => {
+  if (ev.data?.type === 'task-synced') {
+    console.log('Client: tarea sincronizada desde SW, id=', ev.data.id);
+    // opcional: recarga la lista o muestra toast
+  }
+});
+
+// ---------------------
+// Render principal
+// ---------------------
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,
-)
+);
 
-// Registro del Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js') // debe coincidir con la ruta generada por Workbox
-      .then(reg => console.log('SW registrado:', reg))
-      .catch(err => console.log('Error al registrar SW:', err))
-  })
-}
+// ---------------------
+// Opcional: Forzar update manual desde UI
+// ---------------------
+// export async function updateServiceWorker() {
+//   await updateSW?.();
+// }
