@@ -4,38 +4,44 @@ import type { MyDB } from '../db';
 
 export default function TaskList() {
   const [tasks, setTasks] = useState<MyDB['tasks']['value'][]>([]);
+  const [loading, setLoading] = useState(true);
 
   const loadTasks = async () => {
-    const data = await getTasks();
-    setTasks(data);
+    const localTasks = await getTasks();
+    setTasks(localTasks);
+    setLoading(false);
   };
 
   useEffect(() => {
-    // 🔹 Cargar al inicio
+    // 🔹 Cargar tareas locales al inicio
     loadTasks();
 
-    // 🔹 Escuchar cambios desde localStorage
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'tasks-updated') loadTasks();
+    // 🔹 Escuchar tareas nuevas
+    const handleNewTask = (e: any) => {
+      setTasks((prev) => [...prev, e.detail]);
     };
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('tasks-added', handleNewTask);
 
-    // 🔹 Refresco automático cada 4 seg por seguridad
-    const interval = setInterval(() => loadTasks(), 4000);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
+    return () => window.removeEventListener('tasks-added', handleNewTask);
   }, []);
 
+  if (loading) return <p>Cargando tareas...</p>;
+
   return (
-    <ul>
-      {tasks.map((t) => (
-        <li key={t.id}>
-          {t.text} — {new Date(t.date).toLocaleString()}
-        </li>
-      ))}
-    </ul>
+    <div>
+      <h2>Tareas guardadas</h2>
+      {tasks.length === 0 ? (
+        <p>No hay tareas registradas.</p>
+      ) : (
+        <ul>
+          {tasks.map((t, i) => (
+            <li key={t.id || i}>
+              {t.id ? `${t.id}. ` : ''}{t.text} {t.synced ? '✅' : '📴'}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
+
