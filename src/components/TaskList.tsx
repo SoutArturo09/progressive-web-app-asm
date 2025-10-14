@@ -10,7 +10,7 @@ export default function TaskList() {
     try {
       if (navigator.onLine) {
         console.log('🟢 Online: cargando tareas desde el backend...');
-        const res = await fetch('http://localhost:3000/api/tasks');
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks`);
         if (res.ok) {
           const data = await res.json();
           setTasks(data);
@@ -54,9 +54,10 @@ export default function TaskList() {
       ) : (
         <ul>
           {tasks.map((t, i) => (
-            <li key={t.id || i}>
-              {t.id ? `${t.id}. ` : ''}{t.text} {t.synced ? '✅' : '📴'}
+            <li key={`${t.id || 'local'}-${i}`}>
+  {i + 1}. {t.text} {t.synced ? '✅' : '📴'}
             </li>
+
           ))}
         </ul>
       )}
