@@ -28,22 +28,24 @@ async function openDatabase() {
 // ---------------------
 self.addEventListener('install', (event) => {
   console.log('[SW] Instalando Service Worker...');
+  
+  const CACHE_FILES = [
+    '/',
+    '/index.html',
+    '/manifest.json',
+    '/favicon.ico',
+    OFFLINE_URL,
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+  ];
+
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([
-        '/',
-        '/index.html',
-        '/manifest.json',
-        '/favicon.ico',
-        OFFLINE_URL,
-        '/src/main.js', // ⚠️ ajusta según tu build (puede ser /assets/index-xxxxx.js)
-        '/src/index.css', // ⚠️ igual aquí
-        '/icons/icon-192.png',
-        '/icons/icon-512.png',
-      ])
+      cache.addAll(CACHE_FILES)
     )
   );
 });
+
 
 // ---------------------
 // 3️⃣ Activación

@@ -17,10 +17,12 @@ registerSW({
   },
 });
 
+// ---------------------
+// Escucha mensajes desde el SW
+// ---------------------
 navigator.serviceWorker?.addEventListener('message', (ev) => {
   if (ev.data?.type === 'task-synced') {
     console.log('Client: tarea sincronizada desde SW, id=', ev.data.id);
-    // opcional: recarga la lista o muestra toast
   }
 });
 
@@ -32,10 +34,3 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
-
-// ---------------------
-// Opcional: Forzar update manual desde UI
-// ---------------------
-// export async function updateServiceWorker() {
-//   await updateSW?.();
-// }

@@ -7,16 +7,35 @@ export default function TaskList() {
   const [loading, setLoading] = useState(true);
 
   const loadTasks = async () => {
-    const localTasks = await getTasks();
-    setTasks(localTasks);
-    setLoading(false);
+    try {
+      if (navigator.onLine) {
+        console.log('🟢 Online: cargando tareas desde el backend...');
+        const res = await fetch('http://localhost:3000/api/tasks');
+        if (res.ok) {
+          const data = await res.json();
+          setTasks(data);
+        } else {
+          console.warn('⚠️ Error al traer tareas del servidor, usando locales');
+          const localTasks = await getTasks();
+          setTasks(localTasks);
+        }
+      } else {
+        console.log('📴 Offline: cargando tareas locales...');
+        const localTasks = await getTasks();
+        setTasks(localTasks);
+      }
+    } catch (err) {
+      console.error('❌ Error cargando tareas:', err);
+      const localTasks = await getTasks();
+      setTasks(localTasks);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    // 🔹 Cargar tareas locales al inicio
     loadTasks();
 
-    // 🔹 Escuchar tareas nuevas
     const handleNewTask = (e: any) => {
       setTasks((prev) => [...prev, e.detail]);
     };
@@ -44,4 +63,3 @@ export default function TaskList() {
     </div>
   );
 }
-
