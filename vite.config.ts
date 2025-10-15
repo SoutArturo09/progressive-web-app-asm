@@ -1,25 +1,13 @@
+// vite.config.ts - Versión final
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
-
-// ✅ Ya no necesitas importar React explícitamente para JSX moderno
-// import * as React from 'react';  <-- esto ya no es necesario si tu tsconfig tiene "jsx": "react-jsx"
-
-const isDev = process.env.NODE_ENV === 'development';
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      srcDir: 'src',
-      filename: 'sw.js',           // tu SW personalizado
       registerType: 'autoUpdate',
-      injectRegister: 'inline',    // fuerza registro en dev
-      devOptions: {
-        enabled: true,             // registra SW en dev
-        type: 'module',            // usa module type en dev
-      },
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
         name: 'Mi PWA App',
         short_name: 'MiApp',
@@ -33,19 +21,19 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // No cache de API en dev
-        runtimeCaching: isDev
-          ? []
-          : [
-              {
-                urlPattern: /^https:\/\/localhost:3000\/api\/.*$/,
-                handler: 'NetworkFirst',
-                options: {
-                  cacheName: 'api-cache',
-                },
-              },
-            ],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/localhost:3000\/api\/.*$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+            },
+          },
+        ],
       },
+      devOptions: {
+        enabled: false
+      }
     }),
   ],
 });

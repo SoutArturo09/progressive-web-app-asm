@@ -4,27 +4,62 @@ import App from './App';
 import './index.css';
 
 // ---------------------
-// Registro del Service Worker con Vite PWA
+// Registro MANUAL del Service Worker - CORREGIDO
 // ---------------------
-import { registerSW } from 'virtual:pwa-register';
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      console.log('🔄 Iniciando registro manual del Service Worker...');
+      
+      // Limpiar SWs antiguos primero
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (let registration of registrations) {
+        await registration.unregister();
+        console.log('🗑️ SW antiguo desregistrado:', registration.scope);
+      }
 
-registerSW({
-  onOfflineReady() {
-    console.log('✅ Tu app ya está lista para usar offline');
-  },
-  onNeedRefresh() {
-    console.log('⚡ Nueva versión disponible. Actualiza la app');
-  },
-});
+      // ✅ Registrar desde la carpeta public
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      });
 
-// ---------------------
-// Escucha mensajes desde el SW
-// ---------------------
-navigator.serviceWorker?.addEventListener('message', (ev) => {
-  if (ev.data?.type === 'task-synced') {
-    console.log('Client: tarea sincronizada desde SW, id=', ev.data.id);
-  }
-});
+      console.log('✅ Service Worker registrado correctamente:', registration);
+
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            console.log('🔄 Estado del SW:', newWorker.state);
+            if (newWorker.state === 'activated') {
+              console.log('🎉 Service Worker ACTIVADO Y LISTO');
+              
+              // Verificar que puede recibir mensajes
+              newWorker.postMessage({ 
+                type: 'hello', 
+                message: 'Service Worker activado correctamente' 
+              });
+            }
+          });
+        }
+      });
+
+      // Escuchar mensajes del SW
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log('📨 Mensaje del SW:', event.data);
+      });
+
+      // Manejar errores del SW
+      registration.addEventListener('error', (event: Event) => {
+        console.error('❌ Error en el Service Worker:', event);
+      });
+
+    } catch (error) {
+      console.error('❌ Error registrando Service Worker:', error);
+    }
+  });
+} else {
+  console.log('❌ Service Workers no soportados en este navegador');
+}
 
 // ---------------------
 // Render principal

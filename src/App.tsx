@@ -28,65 +28,109 @@ function App() {
     return () => window.removeEventListener('online', onOnline);
   }, [swReg]);
 
-  // -----------------------------
-  // 🔹 Función que maneja el registro push
-  // -----------------------------
-  const handlePushSubscribe = async () => {
-    try {
-      // 1️⃣ Registrar SW si no está listo
-      const registration = swReg ?? await navigator.serviceWorker.register('/sw.js');
+ // -----------------------------
+// 🔹 Función que maneja el registro push - CORREGIDA
+// -----------------------------
+const handlePushSubscribe = async () => {
+  try {
+    console.log('🔄 Iniciando registro push...');
 
-      // 2️⃣ Forzar siempre solicitud de permiso
-      if (Notification.permission !== 'granted') {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-          console.warn('⚠️ Permiso de notificaciones denegado');
-          return;
-        }
-      }
-
-      // 3️⃣ Si ya existe una suscripción, cancelamos la vieja para forzar nueva
-      const existingSub = await registration.pushManager.getSubscription();
-      if (existingSub) {
-        await existingSub.unsubscribe();
-        console.log('⚠️ Suscripción previa eliminada para forzar nueva');
-      }
-
-      // 4️⃣ Suscribirse a push
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY),
-      });
-
-      // 5️⃣ Enviar al backend
-      await fetch(`${import.meta.env.VITE_API_URL}/api/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription),
-      });
-
-      console.log('✅ Suscripción push registrada correctamente');
-      setPushRegistered(true);
-
-    } catch (err) {
-      console.error('Error registrando push:', err);
+    // 1️⃣ Registrar SW si no está listo
+    const registration = swReg ?? await navigator.serviceWorker.ready;
+    
+    if (!registration) {
+      throw new Error('No se pudo obtener el Service Worker');
     }
-  };
 
-  return (
-    <div className="app">
-      <h1>🚀 PWA con Offline Form</h1>
+    // 2️⃣ Solicitar permisos
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      console.log('📋 Permiso resultante:', permission);
+      
+      if (permission !== 'granted') {
+        console.warn('⚠️ Permiso de notificaciones denegado');
+        return;
+      }
+    } else if (Notification.permission === 'denied') {
+      console.warn('❌ Permiso de notificaciones previamente denegado');
+      return;
+    }
 
-      {!pushRegistered && (
+    // 3️⃣ Obtener suscripción existente y eliminar si hay
+    let existingSub = await registration.pushManager.getSubscription();
+    if (existingSub) {
+      console.log('🗑️ Eliminando suscripción existente...');
+      await existingSub.unsubscribe();
+      existingSub = null;
+    }
+
+    // 4️⃣ Verificar clave VAPID
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      throw new Error('Falta VITE_VAPID_PUBLIC_KEY en las variables de entorno');
+    }
+
+    console.log('🔑 Clave VAPID:', vapidPublicKey.substring(0, 20) + '...');
+
+    // 5️⃣ Suscribirse a push
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+
+    // ✅ CORRECCIÓN: Usar toJSON() para acceder a las keys
+    const subscriptionJSON = subscription.toJSON();
+    console.log('✅ Suscripción creada:', {
+      endpoint: subscription.endpoint.substring(0, 50) + '...',
+      keys: subscriptionJSON.keys
+    });
+
+    // 6️⃣ Enviar al backend - usar el objeto JSON completo
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscriptionJSON),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error del servidor: ${response.status}`);
+    }
+
+    console.log('✅ Suscripción push registrada correctamente en el backend');
+    setPushRegistered(true);
+
+    // 7️⃣ Verificar suscripción en el backend
+    const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/subscriptions`);
+    const subsData = await verifyResponse.json();
+    console.log(`📊 Suscripciones en backend: ${subsData.total}`);
+
+  } catch (err) {
+    console.error('❌ Error registrando push:', err);
+    alert('Error al activar notificaciones. Revisa la consola.');
+  }
+};
+
+  // En tu App.tsx, actualiza el return:
+return (
+  <div className="app">
+    <h1>🚀 PWA con Offline Form</h1>
+
+    <div className="status-panel">
+      {!pushRegistered ? (
         <button onClick={handlePushSubscribe}>
           🔔 Activar Notificaciones Push
         </button>
+      ) : (
+        <div style={{color: 'green', fontWeight: 'bold'}}>
+          ✅ Notificaciones push activadas
+        </div>
       )}
-
-      <TaskForm />
-      <TaskList />
     </div>
-  );
+
+    <TaskForm />
+    <TaskList />
+  </div>
+);
 }
 
 export default App;
