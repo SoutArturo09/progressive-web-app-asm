@@ -6,50 +6,28 @@ import { syncPendingTasksFromClient } from './utils/syncPending';
 function App() {
   const [pushRegistered, setPushRegistered] = useState(false);
   const [swReg, setSwReg] = useState<ServiceWorkerRegistration | null>(null);
-  const [swStatus, setSwStatus] = useState<'loading' | 'active' | 'error'>('loading');
 
   useEffect(() => {
-    const initializeSW = async () => {
-      try {
-        if ('serviceWorker' in navigator) {
-          // Esperar a que el SW esté listo
-          const registration = await navigator.serviceWorker.ready;
-          setSwReg(registration);
-          setSwStatus('active');
-          console.log('🎯 SW listo en App - Netlify:', registration.active?.state);
-          
-          // Verificar si el SW está controlando
-          if (navigator.serviceWorker.controller) {
-            console.log('✅ SW controlando página - Listo para push');
-          } else {
-            console.warn('⚠️ SW registrado pero no controlando');
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error inicializando SW:', error);
-        setSwStatus('error');
-      }
-    };
+    // Registrar SW manualmente
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(registration => {
+        setSwReg(registration);
+        console.log('🎯 SW listo en App');
+      });
+    }
 
-    initializeSW();
+    // Sincronizar al cargar
     syncPendingTasksFromClient();
 
     const onOnline = () => {
       console.log('[APP] Volviendo online - sincronizando...');
       syncPendingTasksFromClient();
       
+      // Registrar sync con el Service Worker
       if (swReg && 'sync' in swReg) {
-        interface SyncManager {
-          register(tag: string): Promise<void>;
-        }
-
-        interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
-          sync: SyncManager;
-        }
-
-                (swReg as ServiceWorkerRegistrationWithSync).sync.register('sync-tasks')
-                  .then(() => console.log('✅ Sync registrado en SW'))
-                  .catch((err: Error) => console.warn('⚠️ No se pudo registrar sync:', err));
+        (swReg as any).sync.register('sync-tasks')
+          .then(() => console.log('✅ Sync registrado en SW'))
+          .catch((err: Error) => console.warn('❌ No se pudo registrar sync:', err));
       }
     };
 
@@ -59,7 +37,7 @@ function App() {
 
   const handlePushSubscribe = async () => {
     try {
-      console.log('🔄 Iniciando registro push en Netlify...');
+      console.log('🔄 Iniciando registro push...');
 
       const registration = swReg ?? await navigator.serviceWorker.ready;
       
@@ -67,20 +45,22 @@ function App() {
         throw new Error('No se pudo obtener el Service Worker');
       }
 
-      // Verificar permisos
-      let permission = Notification.permission;
-      if (permission === 'default') {
-        permission = await Notification.requestPermission();
+      // Solicitar permisos
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        console.log('📋 Permiso resultante:', permission);
+        
+        if (permission !== 'granted') {
+          console.warn('⚠️ Permiso de notificaciones denegado');
+          return;
+        }
+      } else if (Notification.permission === 'denied') {
+        console.warn('❌ Permiso de notificaciones previamente denegado');
+        return;
       }
-      
-      if (permission !== 'granted') {
-        throw new Error('Permiso de notificaciones denegado');
-      }
-
-      console.log('📋 Permiso concedido');
 
       // Eliminar suscripción existente
-      const existingSub = await registration.pushManager.getSubscription();
+      let existingSub = await registration.pushManager.getSubscription();
       if (existingSub) {
         console.log('🗑️ Eliminando suscripción existente...');
         await existingSub.unsubscribe();
@@ -101,7 +81,9 @@ function App() {
       });
 
       const subscriptionJSON = subscription.toJSON();
-      console.log('✅ Suscripción creada - Endpoint:', subscription.endpoint);
+      console.log('✅ Suscripción creada:', {
+        endpoint: subscription.endpoint.substring(0, 50) + '...',
+      });
 
       // Enviar al backend
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/subscribe`, {
@@ -117,23 +99,21 @@ function App() {
       console.log('✅ Suscripción registrada en backend');
       setPushRegistered(true);
 
-      // TEST INMEDIATO: Enviar notificación de prueba
-      console.log('🧪 Enviando test de notificación...');
+      // TEST: Enviar notificación de prueba
       const testResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/notify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: '🎉 Test desde Netlify',
-          body: `Hora: ${new Date().toLocaleTimeString()} - ¡Funciona!`
+          title: '🎉 Prueba desde Netlify',
+          body: '¡Notificaciones funcionando!'
         }),
       });
 
       const testResult = await testResponse.json();
-      console.log('🧪 Resultado test:', testResult);
+      console.log('🧪 Test notificación:', testResult);
 
-    } catch (err: any) {
+    } catch (err) {
       console.error('❌ Error registrando push:', err);
-      alert(`Error: ${err.message}`);
     }
   };
 
@@ -142,20 +122,9 @@ function App() {
       <h1>🚀 PWA con Offline Form</h1>
 
       <div className="status-panel">
-        <div style={{ marginBottom: '10px' }}>
-          Estado SW: 
-          <span style={{ 
-            color: swStatus === 'active' ? 'green' : swStatus === 'error' ? 'red' : 'orange',
-            fontWeight: 'bold',
-            marginLeft: '5px'
-          }}>
-            {swStatus === 'active' ? '✅ Activo' : swStatus === 'error' ? '❌ Error' : '⏳ Cargando'}
-          </span>
-        </div>
-
         {!pushRegistered ? (
-          <button onClick={handlePushSubscribe} disabled={swStatus !== 'active'}>
-            {swStatus !== 'active' ? '⏳ Esperando SW...' : '🔔 Activar Notificaciones Push'}
+          <button onClick={handlePushSubscribe}>
+            🔔 Activar Notificaciones Push
           </button>
         ) : (
           <div style={{color: 'green', fontWeight: 'bold'}}>
