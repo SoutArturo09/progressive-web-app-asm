@@ -33,80 +33,82 @@ function App() {
 // -----------------------------
 const handlePushSubscribe = async () => {
   try {
-    console.log('🔄 Iniciando registro push...');
-
-    // 1️⃣ Registrar SW si no está listo
-    const registration = swReg ?? await navigator.serviceWorker.ready;
+    console.log('📍 Ubicación actual:', window.location.origin);
     
-    if (!registration) {
-      throw new Error('No se pudo obtener el Service Worker');
+    // 1. Verificar Service Worker
+    if (!('serviceWorker' in navigator)) {
+      throw new Error('Service Workers no soportados');
     }
 
-    // 2️⃣ Solicitar permisos
-    if (Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      console.log('📋 Permiso resultante:', permission);
-      
-      if (permission !== 'granted') {
-        console.warn('⚠️ Permiso de notificaciones denegado');
-        return;
-      }
-    } else if (Notification.permission === 'denied') {
-      console.warn('❌ Permiso de notificaciones previamente denegado');
-      return;
+    const registration = await navigator.serviceWorker.ready;
+    console.log('🔧 SW ready:', {
+      hasActive: !!registration.active,
+      scope: registration.scope,
+      state: registration.active?.state
+    });
+
+    // 2. Verificar permisos
+    if (Notification.permission === 'denied') {
+      throw new Error('Permisos de notificación denegados permanentemente');
     }
 
-    // 3️⃣ Obtener suscripción existente y eliminar si hay
-    let existingSub = await registration.pushManager.getSubscription();
-    if (existingSub) {
-      console.log('🗑️ Eliminando suscripción existente...');
-      await existingSub.unsubscribe();
-      existingSub = null;
+    const permission = await Notification.requestPermission();
+    console.log('📋 Permiso:', permission);
+
+    if (permission !== 'granted') {
+      throw new Error('Permiso no concedido');
     }
 
-    // 4️⃣ Verificar clave VAPID
-    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-    if (!vapidPublicKey) {
-      throw new Error('Falta VITE_VAPID_PUBLIC_KEY en las variables de entorno');
-    }
+    // 3. Suscribir
+    const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+    console.log('🔑 VAPID Key (primeros 20 chars):', vapidKey?.substring(0, 20));
 
-    console.log('🔑 Clave VAPID:', vapidPublicKey.substring(0, 20) + '...');
-
-    // 5️⃣ Suscribirse a push
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      applicationServerKey: urlBase64ToUint8Array(vapidKey)
     });
 
-    // ✅ CORRECCIÓN: Usar toJSON() para acceder a las keys
-    const subscriptionJSON = subscription.toJSON();
-    console.log('✅ Suscripción creada:', {
-      endpoint: subscription.endpoint.substring(0, 50) + '...',
-      keys: subscriptionJSON.keys
+    const subData = subscription.toJSON();
+    console.log('📨 Suscripción creada:', {
+      endpoint: subscription.endpoint,
+      keys: subData.keys
     });
 
-    // 6️⃣ Enviar al backend - usar el objeto JSON completo
+    // 4. Enviar al backend - CON MÁS LOGGING
+    console.log('🌐 Enviando a API:', `${import.meta.env.VITE_API_URL}/api/subscribe`);
+    
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscriptionJSON),
+      body: JSON.stringify(subData),
     });
 
+    console.log('📊 Response status:', response.status);
+    
     if (!response.ok) {
-      throw new Error(`Error del servidor: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Backend error: ${response.status} - ${errorText}`);
     }
 
-    console.log('✅ Suscripción push registrada correctamente en el backend');
-    setPushRegistered(true);
+    console.log('✅ Suscripción registrada en backend');
 
-    // 7️⃣ Verificar suscripción en el backend
-    const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/subscriptions`);
-    const subsData = await verifyResponse.json();
-    console.log(`📊 Suscripciones en backend: ${subsData.total}`);
+    // 5. TEST INMEDIATO - enviar notificación de prueba
+    console.log('🧪 Enviando notificación de prueba...');
+    const testResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Test desde Netlify',
+        body: `Hora: ${new Date().toLocaleTimeString()}`
+      }),
+    });
 
-  } catch (err) {
-    console.error('❌ Error registrando push:', err);
-    alert('Error al activar notificaciones. Revisa la consola.');
+    const testResult = await testResponse.json();
+    console.log('🧪 Resultado test:', testResult);
+
+  } catch (error) {
+    console.error('❌ Error completo:', error);
+    alert(`Error: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
   }
 };
 
