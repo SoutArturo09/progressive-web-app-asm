@@ -1,4 +1,4 @@
-// public/sw.js - VERSIÓN CORREGIDA
+// public/sw.js - VERSIÓN CORREGIDA PARA NETLIFY
 console.log('🎯 SERVICE WORKER CARGADO - Con todas las funcionalidades');
 
 const DB_NAME = 'myPWA-db';
@@ -47,18 +47,21 @@ self.addEventListener('install', (event) => {
 });
 
 // ---------------------
-// 2️⃣ Activación MEJORADA
+// 2️⃣ Activación MEJORADA - CON CLAIM FORZADO
 // ---------------------
 self.addEventListener('activate', (event) => {
   console.log('🚀 SW activado y tomando control...');
   event.waitUntil(
     Promise.all([
-      self.clients.claim(),
+      // ⚠️ CRÍTICO: Forzar claim de clients inmediatamente
+      self.clients.claim().then(() => {
+        console.log('✅ Clients claim exitoso - SW tomando control');
+      }),
       // Limpiar caches antiguos si los hay
       caches.keys().then(cacheNames => {
         return Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME) {
+            if (cacheName !== CACHE_NAME && !cacheName.includes('workbox')) {
               console.log('🗑️ Eliminando cache antiguo:', cacheName);
               return caches.delete(cacheName);
             }
@@ -136,7 +139,7 @@ async function syncTasks() {
   return Promise.resolve();
 }
 
-// ---------------------
+// --------------------- 
 // 5️⃣ Push Notifications - FUNCIONAL (ya funciona)
 // ---------------------
 self.addEventListener('push', (event) => {
@@ -192,7 +195,7 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // ---------------------
-// 6️⃣ Manejo de mensajes
+// 6️⃣ Manejo de mensajes - ACTUALIZADO
 // ---------------------
 self.addEventListener('message', (event) => {
   console.log('📨 Mensaje recibido del cliente:', event.data);
@@ -201,6 +204,14 @@ self.addEventListener('message', (event) => {
     event.ports[0]?.postMessage({ 
       status: 'ok', 
       message: '¡Service Worker funcionando perfectamente!' 
+    });
+  }
+
+  if (event.data && event.data.type === 'CLAIM_CLIENTS') {
+    console.log('🎯 Reclamando clients...');
+    self.clients.claim().then(() => {
+      console.log('✅ Clients reclamados exitosamente');
+      event.ports[0]?.postMessage({ status: 'claimed' });
     });
   }
 });

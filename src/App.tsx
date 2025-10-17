@@ -97,7 +97,7 @@ function App() {
       }
 
       console.log('✅ Suscripción push registrada correctamente en el backend');
-      setPushRegistered(true); // ✅ ESTA LÍNEA FALTABA O ESTABA COMENTADA
+      setPushRegistered(true);
 
       // 7️⃣ Verificar suscripción en el backend
       const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/subscriptions`);
@@ -110,7 +110,6 @@ function App() {
     }
   };
 
-  // En tu App.tsx, actualiza el return:
   return (
     <div className="app">
       <h1>🚀 PWA con Offline Form</h1>

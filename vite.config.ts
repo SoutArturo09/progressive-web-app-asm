@@ -1,4 +1,3 @@
-// vite.config.ts - Versión final
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -20,20 +19,24 @@ export default defineConfig({
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
         ],
       },
+      // ⚠️ CRÍTICO: Deshabilitar completamente el SW automático
+      injectRegister: null,
       workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/localhost:3000\/api\/.*$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-            },
-          },
-        ],
+        // ⚠️ NO generar ningún SW
+        globPatterns: [],
+        navigateFallback: null,
+        cleanupOutdatedCaches: false,
+        skipWaiting: false,
+        clientsClaim: false
       },
       devOptions: {
         enabled: false
       }
-    }),
+    })
   ],
+  build: {
+    outDir: 'dist',
+  },
+  publicDir: 'public',
+  base: '/',
 });
