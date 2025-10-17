@@ -4,7 +4,7 @@ import App from './App';
 import './index.css';
 
 // ---------------------
-// Registro MANUAL del Service Worker - CORREGIDO
+// Registro MANUAL del Service Worker - VERSIÓN NETLIFY
 // ---------------------
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
@@ -39,19 +39,13 @@ if ('serviceWorker' in navigator) {
                 message: 'Service Worker activado correctamente' 
               });
 
-              // 🔍 EJECUTAR VERIFICACIÓN DESPUÉS DE ACTIVARSE
+              // 🔍 EJECUTAR VERIFICACIÓN
               setTimeout(() => {
                 checkNetlifySW();
-                forceSWControl();
               }, 1000);
             }
           });
         }
-      });
-
-      // Escuchar mensajes del SW
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        console.log('📨 Mensaje del SW:', event.data);
       });
 
       // Manejar errores del SW
@@ -68,37 +62,6 @@ if ('serviceWorker' in navigator) {
 }
 
 // ---------------------
-// FORZAR CONTROL DEL SW
-// ---------------------
-const forceSWControl = async () => {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    console.log('✅ SW ya está controlando la página');
-    return;
-  }
-
-  console.log('🔄 Forzando control del SW...');
-  
-  // Esperar a que el SW esté listo
-  const registration = await navigator.serviceWorker.ready;
-  
-  // Forzar claim de clients
-  if (registration.active) {
-    console.log('🎯 Activando control inmediato...');
-    
-    // Enviar mensaje al SW para que se active
-    registration.active.postMessage({ type: 'CLAIM_CLIENTS' });
-    
-    // Recargar para que tome control (solo si es necesario)
-    if (!navigator.serviceWorker.controller) {
-      console.log('🔄 Recargando para activar SW...');
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    }
-  }
-};
-
-// ---------------------
 // VERIFICACIÓN ESPECÍFICA PARA NETLIFY
 // ---------------------
 const checkNetlifySW = async () => {
@@ -112,7 +75,6 @@ const checkNetlifySW = async () => {
     try {
       const swResponse = await fetch('/sw.js');
       console.log('📦 SW HTTP Status:', swResponse.status);
-      console.log('📦 SW Content-Type:', swResponse.headers.get('content-type'));
     } catch (err) {
       console.error('❌ No se puede cargar sw.js:', err);
     }
@@ -130,25 +92,20 @@ const checkNetlifySW = async () => {
       console.log(`SW ${idx}:`, {
         scope: reg.scope,
         active: reg.active?.state,
-        waiting: reg.waiting?.state,
-        installing: reg.installing?.state,
-        scriptURL: reg.active?.scriptURL || reg.installing?.scriptURL
+        scriptURL: reg.active?.scriptURL
       });
     });
 
     // Verificar si está controlando
     if (navigator.serviceWorker.controller) {
       console.log('✅ SW está CONTROlando la página');
-      console.log('🔧 SW Controller state:', navigator.serviceWorker.controller.state);
       console.log('🔗 SW Controller scriptURL:', navigator.serviceWorker.controller.scriptURL);
       
-      // Verificar que es NUESTRO SW y no el de workbox
       const isOurSW = navigator.serviceWorker.controller.scriptURL.includes('/sw.js');
       console.log('🎯 ¿Es nuestro SW?', isOurSW);
       
     } else {
       console.log('❌ SW NO está controlando la página');
-      console.log('💡 Solución: Recargar la página o forzar claim');
     }
 
     // Verificar cache
@@ -156,28 +113,15 @@ const checkNetlifySW = async () => {
       const cacheNames = await caches.keys();
       console.log('🗂️ Caches disponibles:', cacheNames);
       
-      // Verificar si nuestro cache existe
       const ourCacheExists = cacheNames.includes('app-cache-v1');
       console.log('🎯 ¿Nuestro cache existe?', ourCacheExists);
     }
-  } else {
-    console.log('❌ Service Workers no soportados');
   }
 };
 
-// ---------------------
-// VERIFICACIÓN ADICIONAL DESPUÉS DE CARGA COMPLETA
-// ---------------------
-window.addEventListener('load', () => {
-  // Verificación inicial
-  setTimeout(checkNetlifySW, 1000);
-  
-  // Verificación adicional por si tarda más
-  setTimeout(checkNetlifySW, 5000);
-
-  // Intentar forzar el control del SW
-  setTimeout(forceSWControl, 2000);
-});
+// Verificación después de carga
+setTimeout(checkNetlifySW, 2000);
+setTimeout(checkNetlifySW, 5000);
 
 // ---------------------
 // Render principal

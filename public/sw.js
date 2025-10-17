@@ -1,22 +1,18 @@
-// public/sw.js - VERSIÓN CORREGIDA PARA NETLIFY
+// public/sw.js - VERSIÓN DEFINITIVA PARA NETLIFY
 console.log('🎯 SERVICE WORKER CARGADO - Con todas las funcionalidades');
 
-const DB_NAME = 'myPWA-db';
-const STORE_NAME = 'tasks';
 const CACHE_NAME = 'app-cache-v1';
 
 // ---------------------
-// 1️⃣ Instalación MEJORADA: cachea archivos con manejo de errores
+// 1️⃣ Instalación SIMPLIFICADA
 // ---------------------
 self.addEventListener('install', (event) => {
-  console.log('📥 SW instalándose...');
+  console.log('📥 SW instalándose en Netlify...');
   
-  // Solo archivos que definitivamente existen
   const CACHE_FILES = [
     '/',
     '/index.html',
     '/manifest.json',
-    '/favicon.ico',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
   ];
@@ -25,50 +21,38 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('🗂️ Cache abierto, agregando archivos...');
-        // Agregar archivos uno por uno con manejo de errores
-        return Promise.all(
-          CACHE_FILES.map(url => {
-            return cache.add(url).catch(err => {
-              console.warn(`⚠️ No se pudo cachear ${url}:`, err.message);
-              return null; // Continuar aunque falle uno
-            });
-          })
-        );
+        return cache.addAll(CACHE_FILES).catch(err => {
+          console.warn('⚠️ Algunos archivos no se pudieron cachear:', err);
+        });
       })
       .then(() => {
-        console.log('✅ Instalación completada (errores ignorados)');
-        return self.skipWaiting(); // ⚠️ Importante: activar inmediatamente
-      })
-      .catch(err => {
-        console.error('❌ Error en instalación:', err);
-        return self.skipWaiting(); // ⚠️ Skipear incluso si hay error
+        console.log('✅ Instalación completada');
+        return self.skipWaiting();
       })
   );
 });
 
 // ---------------------
-// 2️⃣ Activación MEJORADA - CON CLAIM FORZADO
+// 2️⃣ Activación MEJORADA
 // ---------------------
 self.addEventListener('activate', (event) => {
   console.log('🚀 SW activado y tomando control...');
   event.waitUntil(
     Promise.all([
-      // ⚠️ CRÍTICO: Forzar claim de clients inmediatamente
-      self.clients.claim().then(() => {
-        console.log('✅ Clients claim exitoso - SW tomando control');
-      }),
-      // Limpiar caches antiguos si los hay
+      self.clients.claim(),
       caches.keys().then(cacheNames => {
         return Promise.all(
           cacheNames.map(cacheName => {
-            if (cacheName !== CACHE_NAME && !cacheName.includes('workbox')) {
+            if (cacheName !== CACHE_NAME) {
               console.log('🗑️ Eliminando cache antiguo:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
-    ])
+    ]).then(() => {
+      console.log('✅ Activación completada - SW listo');
+    })
   );
 });
 
@@ -81,7 +65,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
-  // Solo cachear requests GET
   if (event.request.method !== 'GET') {
     return;
   }
@@ -89,20 +72,16 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
-        // Si está en cache, devolverlo
         if (cachedResponse) {
           return cachedResponse;
         }
         
-        // Si no está en cache, hacer fetch y cachear
         return fetch(event.request)
           .then(response => {
-            // Solo cachear responses válidas
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
             
-            // Clonar la response para cachear
             const responseToCache = response.clone();
             caches.open(CACHE_NAME)
               .then(cache => {
@@ -113,18 +92,17 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(error => {
             console.log('🌐 Offline - No se pudo fetch:', event.request.url);
-            // Podrías devolver una página offline genérica aquí
           });
       })
   );
 });
 
 // ---------------------
-// 4️⃣ Background Sync - SIMPLIFICADO
+// 4️⃣ Background Sync - MEJORADO
 // ---------------------
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-tasks') {
-    console.log('[SW] Sincronizando tareas...');
+    console.log('🔄 [SW] Sincronizando tareas...');
     event.waitUntil(
       syncTasks().catch(err => {
         console.error('[SW] Error en sync:', err);
@@ -134,16 +112,16 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncTasks() {
-  console.log('[SW] ⏳ Iniciando sincronización...');
-  // Por ahora solo log, luego implementas la lógica completa
+  console.log('🔄 [SW] Iniciando sincronización de tareas pendientes...');
+  // Aquí va tu lógica de sincronización
   return Promise.resolve();
 }
 
 // --------------------- 
-// 5️⃣ Push Notifications - FUNCIONAL (ya funciona)
+// 5️⃣ Push Notifications - ROBUSTO
 // ---------------------
 self.addEventListener('push', (event) => {
-  console.log('🔔🔔🔔 EVENTO PUSH RECIBIDO', event);
+  console.log('🔔🔔🔔 EVENTO PUSH RECIBIDO EN NETLIFY');
   
   if (!event.data) {
     console.log('❌ Evento push sin datos');
@@ -195,7 +173,7 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // ---------------------
-// 6️⃣ Manejo de mensajes - ACTUALIZADO
+// 6️⃣ Manejo de mensajes
 // ---------------------
 self.addEventListener('message', (event) => {
   console.log('📨 Mensaje recibido del cliente:', event.data);
@@ -204,14 +182,6 @@ self.addEventListener('message', (event) => {
     event.ports[0]?.postMessage({ 
       status: 'ok', 
       message: '¡Service Worker funcionando perfectamente!' 
-    });
-  }
-
-  if (event.data && event.data.type === 'CLAIM_CLIENTS') {
-    console.log('🎯 Reclamando clients...');
-    self.clients.claim().then(() => {
-      console.log('✅ Clients reclamados exitosamente');
-      event.ports[0]?.postMessage({ status: 'claimed' });
     });
   }
 });
