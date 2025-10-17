@@ -8,7 +8,7 @@ export async function syncPendingTasksFromClient() {
   for (const task of pending) {
     try {
       // opcional: formatea la fecha aquí si tu backend lo necesita
-      const res = await fetch('http://localhost:3000/api/tasks', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(task),
